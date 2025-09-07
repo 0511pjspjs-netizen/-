@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>소아 마취 세팅 계산기 · Neonate–Child</title>
+<style>
+  /* ===== Base ===== */
+  :root{
+    --bg:#fcfcfe;
+    --ink:#12131a;
+    --sub:#5a6074;
+    --faint:#e8eaf2;
+    --primary:#2b66f6;
+    --card:#ffffff;
+    --accent:#1140c9;
+    --ok:#16a34a;
+    --warn:#c2410c;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#f3f5ff 0%,#fcfcfe 30%);
+    color:var(--ink);
+    font-family:ui-sans-serif,system-ui,AppleSDGothicNeo,"Noto Sans KR","Segoe UI",Pretendard,Roboto,Helvetica,Arial;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.4;
+  }
+  /* ===== Layout ===== */
+  header{
+    position:sticky; top:0; z-index:5;
+    background:rgba(255,255,255,.8); backdrop-filter:saturate(180%) blur(12px);
+    border-bottom:1px solid var(--faint);
+    padding:18px 16px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+  h1{margin:0;font-weight:800;font-size:20px;letter-spacing:.2px}
+  .sub{color:var(--sub);font-size:13px;margin-top:6px}
+  main{max-width:1080px;margin:18px auto;display:grid;grid-template-columns:1.1fr .9fr;gap:18px;padding:0 16px}
+  @media (max-width: 980px){ main{grid-template-columns:1fr;gap:14px} }
+  .card{
+    background:var(--card);
+    border:1px solid var(--faint);
+    border-radius:16px;
+    box-shadow:0 10px 30px rgba(17,24,39,.06);
+    padding:16px;
+  }
+  h2{margin:0 0 12px;font-size:16px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#edf2ff;color:#2742a6;border:1px solid #dbe3ff;font-size:12px;margin-left:8px}
+  /* ===== Inputs ===== */
+  label{display:block;font-size:13px;color:var(--sub);margin:8px 0 6px}
+  input,select{
+    width:100%;padding:12px 12px;border-radius:12px;border:1px solid var(--faint);
+    background:#fff; color:var(--ink); outline:none; font-size:14px;
+  }
+  input:focus,select:focus{border-color:#b8c6ff; box-shadow:0 0 0 4px #eef2ff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 14px;border-radius:12px;border:1px solid #dbe3ff;
+    background:#2b66f6;color:white;text-decoration:none;font-weight:600;
+    cursor:pointer;
+  }
+  .btn.secondary{background:#fff;color:#2742a6}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  /* ===== Output ===== */
+  .out{display:grid;gap:8px}
+  .kv{
+    display:grid;grid-template-columns:160px 1fr;gap:8px;align-items:start;
+    padding:10px 12px;border-radius:12px;background:#f9fbff;border:1px solid #eaf0ff;
+    font-family:ui-monospace,Consolas,Menlo,monospace;font-size:13.5px
+  }
+  .kv .k{color:#21315c}
+  .kv .v strong{font-weight:800}
+  .note{font-size:12px;color:#475569;background:#f6f7fb;border:1px dashed #e2e8f0;border-radius:12px;padding:10px 12px}
+  .sec h3{margin:0 0 6px;font-size:14px;color:#1f2937}
+  .divider{height:1px;background:var(--faint);margin:12px 0}
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
+  /* ===== Footer ===== */
+  footer{max-width:1080px;margin:10px auto 80px;padding:0 16px}
+  .download{margin-top:10px}
+  .sig{position:fixed; right:10px; bottom:10px; font-size:11px; color:#7a86a8; opacity:.9}
+  .copy{cursor:pointer;font-size:12px;color:var(--accent);border:none;background:transparent}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>소아 마취 세팅 계산기 <span class="pill">Neonate–Child</span></h1>
+    <div class="sub">성별·나이(년 또는 개월)·키·몸무게를 입력 → 기도 장비, MAC, 유도/진통/응급 약물, 수액/수혈을 <b>kg 기준</b>으로 자동 계산합니다. 각 섹션에 근거 문장을 함께 표기합니다.</div>
+  </div>
+</header>
+
+<main>
+  <!-- 입력 카드 -->
+  <section class="card">
+    <h2>입력</h2>
+    <div class="grid">
+      <div>
+        <label>성별</label>
+        <select id="sex">
+          <option value="F">여</option>
+          <option value="M">남</option>
+        </select>
+      </div>
+      <div>
+        <label>나이 (년)</label>
+        <input id="ageYears" type="number" min="0" step="0.1" placeholder="예: 3" />
+      </div>
+    </div>
+    <div class="grid">
+      <div>
+        <label>나이 (개월) <span class="sub">(년 대신 입력)</span></label>
+        <input id="ageMonths" type="number" min="0" step="1" placeholder="예: 36" />
+      </div>
+      <div>
+        <label>키 (cm)</label>
+        <input id="height" type="number" min="20" step="0.5" placeholder="예: 100" />
+      </div>
+    </div>
+    <div class="grid">
+      <div>
+        <label>몸무게 (kg)</label>
+        <input id="weight" type="number" min="0.5" step="0.1" placeholder="예: 15.0" />
+      </div>
+      <div>
+        <label>목표 Hb 상승 (g/dL) <span class="sub">(수혈 계산)</span></label>
+        <input id="targetHbRise" type="number" min="0" step="0.1" placeholder="예: 2" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" onclick="calcAll()">계산하기</button>
+      <button class="btn secondary" onclick="resetAll()">초기화</button>
+      <button class="btn secondary" onclick="copyAll()">전체 복사</button>
+    </div>
+    <div class="hint">나이는 <b>년 또는 개월</b> 중 하나만 입력하세요.</div>
+  </section>
+
+  <!-- 결과 카드들 -->
+  <section class="card">
+    <h2>결과</h2>
+
+    <!-- AIRWAY -->
+    <div class="sec">
+      <h3>Airway</h3>
+      <div id="airway" class="out"></div>
+      <div class="note">
+        근거문장: “Uncuffed tube ID (mm) = age/4 + 4; cuffed는 약 −0.5 적용. 적정 삽관 깊이는 대략 3 × ID(cm).”
+        (교과서 요약과 소아 기도 리뷰/교육자료 일치)
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- VITALS & MAC -->
+    <div class="sec">
+      <h3>정상 Vital & MAC</h3>
+      <div id="vitals" class="out"></div>
+      <div class="note">
+        근거문장: “PALS 정상범위 표(HR/RR/SBP). Sevo MAC: 신생아 3.3%, 1–&lt;6개월 3.0%, 6–&lt;36개월 2.8%, 3–12세 2.5%. Des MAC은 연령이 증가할수록 점진 감소.”
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- INDUCTION & NMB -->
+    <div class="sec">
+      <h3>유도제 & 근이완제</h3>
+      <div id="induction" class="out"></div>
+      <div class="note">
+        근거문장: “Propofol 2–3 mg/kg; Ketamine 1–2 mg/kg; Thiopental 5–6 mg/kg; Midazolam(진정) 0.05–0.1 mg/kg; Rocuronium 0.6–1.2 mg/kg;
+        Succinylcholine: 영유아 2 mg/kg, 소아 1 mg/kg; Neostigmine 0.03–0.07 mg/kg; Glycopyrrolate 0.005–0.01 mg/kg.”
+        (교과서·라벨·대표 레퍼런스에 합치)
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- ANALGESIA -->
+    <div class="sec">
+      <h3>진통제</h3>
+      <div id="analgesia" class="out"></div>
+      <div class="note">
+        근거문장: “Fentanyl 1–2 mcg/kg; Ketorolac 0.5 mg/kg(대개 ≥2세, 최대용량 제한); Acetaminophen(IV) 15 mg/kg.
+        Nefopam은 소아 권장/허가 제한.”
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- EMERGENCY -->
+    <div class="sec">
+      <h3>응급 약물 (Bolus / Infusion)</h3>
+      <div id="emergency" class="out"></div>
+      <div class="note">
+        근거문장: “Epinephrine 0.01 mg/kg IV/IO q3–5분; Norepinephrine 0.01–0.1 mcg/kg/min; Dopamine 5–20; Dobutamine 2–20;
+        Ephedrine 0.1–0.3 mg/kg; Adenosine 0.1→0.2 mg/kg; Amiodarone loading 5 mg/kg; Atropine 0.02 mg/kg(최소 0.1 mg, 최대 0.5 mg);
+        Cardioversion 0.5–1→2 J/kg; Defibrillation 2→≥4 J/kg(소아 PALS).”
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- FLUIDS & TRANSFUSION -->
+    <div class="sec">
+      <h3>수액 & 수혈</h3>
+      <div id="fluids" class="out"></div>
+      <div class="note">
+        근거문장: “유지수액은 Holliday–Segar 4–2–1 rule. PRBC 10 mL/kg 투여 시 Hb가 약 2 g/dL 상승.
+        계산식 예: Vol(mL) = kg × ΔHb × 3 / Hct(unit≈0.6).”
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="card">
+  <h2>다운로드 & 안내</h2>
+  <p class="sub">이 페이지는 오프라인에서도 작동하는 단일 HTML입니다. 기관 프로토콜(예: DLT 적용, remimazolam, nefopam, esmolol 상세 등)에 맞춰 커스터마이징이 가능합니다.</p>
+  <a class="btn download" href="#" onclick="downloadHTML()">이 페이지 저장(.html)</a>
+</footer>
+
+<div class="sig">made by. 박재성</div>
+
+<script>
+function getAgeYearsMonths(){
+  const y = parseFloat(document.getElementById('ageYears').value||'0');
+  const m = parseFloat(document.getElementById('ageMonths').value||'0');
+  let years = y>0 ? y : (m>0 ? (m/12.0) : 0);
+  let months = m>0 ? m : (y>0 ? (y*12.0) : 0);
+  return {years, months};
+}
+function kv(k,v){
+  return `<div class="kv"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+}
+function toFixedSmart(x, d=1){
+  if (!isFinite(x)) return "—";
+  const s = x.toFixed(d);
+  return /\.0$/.test(s) ? parseInt(s,10) : s;
+}
+
+function airwayCalc(w, years){
+  // ETT size (age-based Cole, cuffed -0.5), with neonatal fallback by weight
+  let cuffedID;
+  if(years < 1){
+    cuffedID = (w<3.5)?2.5:(w<5)?3.0:(w<7.5)?3.5:4.0;
+  } else {
+    cuffedID = (years/4 + 4) - 0.5;
+  }
+  cuffedID = Math.round(cuffedID*2)/2;
+  const uncuffedID = Math.round(((years/4 + 4))*2)/2;
+  const depth = Math.round((cuffedID*3)*10)/10;
+  // LMA (weight-based)
+  let lma;
+  if(w<5) lma="1 (0–5 kg)";
+  else if(w<10) lma="1.5 (5–10 kg)";
+  else if(w<20) lma="2 (10–20 kg)";
+  else if(w<30) lma="2.5 (20–30 kg)";
+  else if(w<50) lma="3 (30–50 kg)";
+  else if(w<70) lma="4 (50–70 kg)";
+  else lma="5 (70–100 kg)";
+  // DLT heuristic
+  const dltOK = (years>=8 && w>=30);
+  const dlt = dltOK ? "26 Fr 권장 시작(기관지경 확인)" : "권장 X (≥8세·≥30 kg 이상에서 고려)";
+  const lines = [];
+  lines.push(kv("ETT size", `cuffed <strong>${toFixedSmart(cuffedID)}</strong> mm · uncuffed <strong>${toFixedSmart(uncuffedID)}</strong> mm <span class="sub">(공식: age/4+4; cuffed −0.5)</span>`));
+  lines.push(kv("삽관 깊이", `<strong>~${toFixedSmart(depth,1)}</strong> cm <span class="sub">(≈ 3 × ID)</span>`));
+  lines.push(kv("LMA size", `<strong>${lma}</strong>`));
+  lines.push(kv("DLT", `<strong>${dlt}</strong>`));
+  return lines.join("");
+}
+
+function vitalAndMAC(years){
+  // PALS ranges
+  let hr, rr, sbp;
+  if(years<0.083){hr="100–205"; rr="30–53"; sbp="60–76";}
+  else if(years<1){hr="100–180"; rr="30–53"; sbp="67–84";}
+  else if(years<3){hr="98–140"; rr="22–37"; sbp="86–106";}
+  else if(years<6){hr="80–120"; rr="20–28"; sbp="89–112";}
+  else if(years<12){hr="75–118"; rr="18–25"; sbp="97–115";}
+  else {hr="60–100"; rr="12–20"; sbp="110–131";}
+  // Sevo MAC (banded)
+  let sevo;
+  if(years<1/12) sevo="3.3%";
+  else if(years<0.5) sevo="3.0%";
+  else if(years<3) sevo="2.8%";
+  else if(years<12) sevo="2.5%";
+  else sevo="2.0–2.6%";
+  // Des MAC (banded trend)
+  let des;
+  if(years<1) des="~10%";
+  else if(years<3) des="~9–10%";
+  else if(years<12) des="~8–9%";
+  else des="~6–8%";
+  const lines = [];
+  lines.push(kv("정상 Vital (PALS)", `HR <strong>${hr}</strong> bpm · RR <strong>${rr}</strong>/min · SBP <strong>${sbp}</strong> mmHg`));
+  lines.push(kv("MAC (Sevo)", `<strong>${sevo}</strong> (O₂)`));
+  lines.push(kv("MAC (Des)", `<strong>${des}</strong> (연령↑ → MAC↓)`));
+  return lines.join("");
+}
+
+function dosesInduction(w){
+  const propMin = Math.round(2*w), propMax = Math.round(3*w);
+  const ketMin = Math.round(1*w), ketMax = Math.round(2*w);
+  const thio = Math.round(5*w);
+  const mid = (0.05*w).toFixed(2);
+  const rocMin = (0.6*w).toFixed(1), rocMax = (1.2*w).toFixed(1);
+  const succInf = Math.round(2*w), succChild = Math.round(1*w);
+  const neo = (0.04*w).toFixed(2);
+  const gpr = (0.01*w).toFixed(2);
+
+  const out=[];
+  out.push(kv("Propofol", `<strong>${propMin}–${propMax} mg</strong> <span class="sub">(2–3 mg/kg)</span>`));
+  out.push(kv("Ketamine", `<strong>${ketMin}–${ketMax} mg</strong> <span class="sub">(1–2 mg/kg)</span>`));
+  out.push(kv("Thiopental", `<strong>~${thio} mg</strong> <span class="sub">(5 mg/kg)</span>`));
+  out.push(kv("Midazolam(진정)", `<strong>~${mid} mg</strong> <span class="sub">(0.05 mg/kg)</span>`));
+  out.push(kv("Rocuronium", `<strong>${rocMin}–${rocMax} mg</strong> <span class="sub">(0.6–1.2 mg/kg)</span>`));
+  out.push(kv("Succinylcholine", `<strong>${succInf} mg</strong> <span class="sub">(영유아 2 mg/kg)</span> · <strong>${succChild} mg</strong> <span class="sub">(소아 1 mg/kg)</span>`));
+  out.push(kv("Neostigmine", `<strong>~${neo} mg</strong> <span class="sub">(0.04 mg/kg)</span>`));
+  out.push(kv("Glycopyrrolate(GPR)", `<strong>~${gpr} mg</strong> <span class="sub">(0.01 mg/kg)</span>`));
+  out.push(kv("Remimazolam", `<span class="warn"><strong>소아 표준 용량 근거 불충분 → 비권고</strong></span>`));
+  return out.join("");
+}
+
+function dosesAnalgesia(w){
+  const fMin=(1*w).toFixed(1), fMax=(2*w).toFixed(1);
+  const ketorolac=(0.5*w).toFixed(1);
+  const apap=Math.round(15*w);
+  const out=[];
+  out.push(kv("Fentanyl", `<strong>${fMin}–${fMax} mcg</strong> <span class="sub">(1–2 mcg/kg)</span>`));
+  out.push(kv("Ketorolac", `<strong>${ketorolac} mg</strong> <span class="sub">(0.5 mg/kg; 대개 ≥2세, 최대용량 제한)</span>`));
+  out.push(kv("Acetaminophen(IV)", `<strong>${apap} mg</strong> <span class="sub">(15 mg/kg)</span>`));
+  out.push(kv("Nefopam", `<span class="warn"><strong>소아 권장/허가 제한 → 비권고</strong></span>`));
+  return out.join("");
+}
+
+function dosesEmergency(w){
+  const epiBol=(0.01*w).toFixed(2);
+  const ephMin=(0.1*w).toFixed(2), ephMax=(0.3*w).toFixed(2);
+  const atrop=(0.02*w).toFixed(2);
+  const ami=(5*w).toFixed(0);
+  const out=[];
+  out.push(kv("Epinephrine (Bolus)", `<strong>${epiBol} mg</strong> <span class="sub">(0.01 mg/kg IV/IO, q3–5분)</span>`));
+  out.push(kv("Norepinephrine (Inf)", `<strong>0.01–0.1 mcg/kg/min</strong>`));
+  out.push(kv("Dopamine (Inf)", `<strong>5–20 mcg/kg/min</strong>`));
+  out.push(kv("Dobutamine (Inf)", `<strong>2–20 mcg/kg/min</strong>`));
+  out.push(kv("Ephedrine (Bolus)", `<strong>${ephMin}–${ephMax} mg</strong> <span class="sub">(0.1–0.3 mg/kg)</span>`));
+  out.push(kv("Esmolol (Bolus)", `<span class="sub">~0.1 mg/kg (기관별)</span>`));
+  out.push(kv("Adenosine", `<strong>0.1 mg/kg</strong> → <strong>0.2 mg/kg</strong> (최대 6/12 mg)</span>`));
+  out.push(kv("Amiodarone (Load)", `<strong>${ami} mg</strong> <span class="sub">(5 mg/kg; 필요시 반복)</span>`));
+  out.push(kv("Atropine", `<strong>${atrop} mg</strong> <span class="sub">(0.02 mg/kg; 최소 0.1 mg, 최대 0.5 mg)</span>`));
+  out.push(kv("Cardioversion", `<strong>0.5–1 J/kg</strong> → <strong>2 J/kg</strong>`));
+  out.push(kv("Defibrillation", `<strong>2 J/kg</strong> → <strong>≥4 J/kg</strong>`));
+  return out.join("");
+}
+
+function fluidsAndTransfusion(w){
+  // 4-2-1 rule
+  let rate;
+  if(w<=10) rate = 4*w;
+  else if(w<=20) rate = 40 + 2*(w-10);
+  else rate = 60 + 1*(w-20);
+  const hbRise = parseFloat(document.getElementById('targetHbRise').value||'0');
+  const unitHct = 0.60;
+  const vol = hbRise>0 ? Math.round(w*hbRise*3/unitHct) : 0;
+  const typical = `${Math.round(10*w)}–${Math.round(15*w)} mL (PRBC 10–15 mL/kg, 2–4시간)`;
+
+  const out=[];
+  out.push(kv("유지수액 (4–2–1)", `<strong>${Math.round(rate)} mL/hr</strong>`));
+  out.push(kv("PRBC 계산식", `목표 ΔHb=<strong>${hbRise||0}</strong> g/dL → <strong>${vol?vol+" mL":"—"}</strong> <span class="sub">(kg×ΔHb×3/Hct, Hct≈0.6)</span>`));
+  out.push(kv("일반 권장 범위", `<strong>${typical}</strong>`));
+  out.push(kv("주입 속도", `보통 <strong>2–4시간</strong> 내 주입 (기관 프로토콜 따름)`));
+  return out.join("");
+}
+
+function calcAll(){
+  const {years} = getAgeYearsMonths();
+  const w = parseFloat(document.getElementById('weight').value||'0');
+  if(!w){ alert("몸무게(kg)를 입력하세요."); return; }
+  document.getElementById('airway').innerHTML = airwayCalc(w, years);
+  document.getElementById('vitals').innerHTML = vitalAndMAC(years);
+  document.getElementById('induction').innerHTML = dosesInduction(w);
+  document.getElementById('analgesia').innerHTML = dosesAnalgesia(w);
+  document.getElementById('emergency').innerHTML = dosesEmergency(w);
+  document.getElementById('fluids').innerHTML = fluidsAndTransfusion(w);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function resetAll(){
+  ['sex','ageYears','ageMonths','height','weight','targetHbRise'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
+  });
+  ['airway','vitals','induction','analgesia','emergency','fluids'].forEach(id=>document.getElementById(id).innerHTML='');
+}
+
+function copyAll(){
+  const ids=['airway','vitals','induction','analgesia','emergency','fluids'];
+  const text = ids.map(id => {
+    const tmp=document.getElementById(id).innerText.trim();
+    if(tmp) return `== ${id.toUpperCase()} ==\n`+tmp;
+    return '';
+  }).join("\n\n").trim();
+  if(!text){ alert("복사할 결과가 없습니다. 먼저 계산하세요."); return; }
+  navigator.clipboard.writeText(text).then(()=>{
+    alert("결과를 클립보드에 복사했습니다.");
+  });
+}
+
+function downloadHTML(){
+  const blob = new Blob([document.documentElement.outerHTML], {type: "text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = "pediatric_anesthesia_calculator_readable.html";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
