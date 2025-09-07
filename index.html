@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>현재 복용 약 추출기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+  <header class="max-w-5xl mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold">현재 복용 약 추출기</h1>
+    <p class="text-sm text-slate-600 mt-1">“내가 먹는 약! 한눈에” 텍스트를 <b>Ctrl+V</b>로 아래에 붙여넣으면, 
+      오늘 기준 <b>현재 복용(유효기간 내)</b>인 약만 골라서 줄바꿈으로 정리합니다.</p>
+  </header>
+
+  <main class="flex-1 max-w-5xl mx-auto px-4 pb-16 w-full">
+    <!-- 입력 -->
+    <section class="bg-white rounded-2xl shadow p-4 md:p-6">
+      <div class="flex flex-col md:flex-row gap-4 md:items-end">
+        <div class="grow">
+          <label class="block text-sm font-medium mb-1">원본 데이터 붙여넣기</label>
+          <textarea id="input" class="w-full h-56 mono rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="여기에 그대로 붙여넣기"></textarea>
+          <p class="text-xs text-slate-500 mt-1">페이지 어디서든 Ctrl+V 하면 자동으로 여기에 붙여넣어집니다.</p>
+        </div>
+        <div class="w-full md:w-72">
+          <label class="block text-sm font-medium mb-1">기준 날짜</label>
+          <input id="asOf" type="date" class="w-full rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <p class="text-xs text-slate-500 mt-1">기본값은 오늘입니다. 필요 시 변경하세요.</p>
+        </div>
+      </div>
+
+      <!-- 옵션 -->
+      <div class="grid md:grid-cols-3 gap-4 mt-6">
+        <div>
+          <p class="text-sm font-medium mb-2">표시 모드</p>
+          <label class="flex items-center gap-2 text-sm mb-1">
+            <input type="radio" name="display" value="nameIng" class="accent-sky-600" checked />
+            약명 + 성분명
+          </label>
+          <label class="flex items-center gap-2 text-sm mb-1">
+            <input type="radio" name="display" value="nameOnly" class="accent-sky-600" />
+            약명만
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="radio" name="display" value="ingOnly" class="accent-sky-600" />
+            성분명만
+          </label>
+        </div>
+
+        <div>
+          <p class="text-sm font-medium mb-2">투약 방법 선택</p>
+          <label class="flex items-center gap-2 text-sm mb-1">
+            <input type="radio" name="doseMode" value="withDose" class="accent-emerald-600" checked />
+            상세(투약량/함량, 횟수 포함)
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input type="radio" name="doseMode" value="noDose" class="accent-emerald-600" />
+            없음
+          </label>
+        </div>
+
+        <div>
+          <p class="text-sm font-medium mb-2">필터</p>
+          <label class="flex items-center gap-2 text-sm mb-1">
+            <input id="onlyOral" type="checkbox" class="accent-sky-600" />
+            경구 제형만 보기 (정/캡슐/서방정)
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input id="dedupIngredient" type="checkbox" class="accent-sky-600" checked />
+            성분 중복 통합(최신 처방만 남김)
+          </label>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3 mt-6">
+        <button id="run" class="px-4 py-2.5 rounded-xl bg-sky-600 text-white hover:bg-sky-700 shadow">현재 복용 약 추출</button>
+        <button id="clear" class="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300">모두 지우기</button>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section class="mt-6 bg-white rounded-2xl shadow p-4 md:p-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">결과</h2>
+        <div class="flex gap-2">
+          <button id="copyBtn" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">복사</button>
+          <button id="copyCSV" class="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">CSV 복사</button>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">복사 시 각 항목은 <b>줄바꿈</b>으로 구분됩니다. CSV 복사는 엑셀/차트에 붙여넣기 좋습니다.</p>
+      <div id="resultEmpty" class="text-sm text-slate-500 py-6">아직 결과가 없습니다. 상단에 텍스트를 붙여넣고 “현재 복용 약 추출”을 눌러주세요.</div>
+      <ul id="resultList" class="hidden list-disc pl-6 mt-4 space-y-1"></ul>
+      <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-black text-white text-sm px-3 py-2 rounded-lg">복사했습니다</div>
+    </section>
+
+    <!-- 디버그(선택) -->
+    <details class="mt-6">
+      <summary class="cursor-pointer text-sm text-slate-600">파싱 미리보기(선택)</summary>
+      <pre id="debug" class="mt-3 p-3 bg-slate-100 rounded-xl mono text-xs overflow-auto max-h-72"></pre>
+    </details>
+  </main>
+
+  <!-- Footer credit -->
+  <footer class="text-[11px] text-slate-500 fixed right-3 bottom-2 select-none">
+    made by. 박재성
+  </footer>
+
+<script>
+// ===== 유틸 =====
+const pad2 = (n) => String(n).padStart(2, '0');
+const toDateStr = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const fromYYYYMMDD = (s) => new Date(Number(s.slice(0,4)), Number(s.slice(4,6))-1, Number(s.slice(6,8)));
+const addDays = (d, days) => { const nd = new Date(d.getTime()); nd.setDate(nd.getDate()+days); return nd; };
+const freqToCode = (n) => ({1:'QD',2:'BID',3:'TID',4:'QID'}[n] || (n? `${n}x/day` : ''));
+const isOralByFormCode = (code) => /A(TB|TR|CH)$/.test(code); // 정/서방정/캡슐
+
+// 투약량 단위 표기 간이화(정/캡슐 -> T/C)
+function doseDisplay(rec){
+  const pkg = rec.package_unit || '';
+  const dose = rec.dose || '';
+  const freq = freqToCode(rec.freq);
+  // 정/캡슐 우선 처리
+  if(/정/.test(pkg)){
+    const count = Number(dose) || 1; return `${count}T ${freq}`.trim();
+  }
+  if(/캡슐/.test(pkg)){
+    const count = Number(dose) || 1; return `${count}C ${freq}`.trim();
+  }
+  // 기타 제형은 숫자 그대로 표시
+  return `${dose} ${freq}`.trim();
+}
+
+// ===== 파서 =====
+function parse(text){
+  const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const out = [];
+  let curDate = null;
+
+  for(const line of lines){
+    // 표 범위 외 안내/법령 문구는 스킵(간단 휴리스틱)
+    if(/^(내가 먹는 약|전송 정보|응급 |개인 투약 이력|close\[|제\d조|\d+\. |\[응급|■ )/.test(line)) continue;
+
+    let rest = line;
+    const m = line.match(/^(\d{8})\s+(.*)$/); // 날짜로 시작
+    if(m){
+      curDate = m[1];
+      rest = m[2];
+    } else if(!curDate){
+      // 아직 날짜를 못 정했는데 데이터행이 아님
+      continue;
+    }
+
+    // 약품코드 (숫자)
+    const codeMatch = rest.match(/^(\d{6,})\s+(.*)$/);
+    if(!codeMatch) continue;
+    const product_code = codeMatch[1];
+    rest = codeMatch[2];
+
+    // 제품명과 표기규격: "..._( ... ) ..."
+    const idx = rest.indexOf("_(");
+    if(idx === -1) continue;
+    const product_name = rest.slice(0, idx).trim();
+    const after = rest.slice(idx+2); // after "_("
+    const closeIdx = after.indexOf(")");
+    if(closeIdx === -1) continue;
+    const strength_display = after.slice(0, closeIdx).trim();
+    let tail = after.slice(closeIdx+1).trim();
+
+    // tail = "ingredient ... dose package freq days ing_code"
+    const toks = tail.split(/\s+/);
+    if(toks.length < 6) continue;
+    const ingredient_code = toks.pop();
+    const days = Number(toks.pop());
+    const freq = Number(toks.pop());
+    const package_unit = toks.pop();
+    const doseRaw = toks.pop();
+    const ingredient_name = toks.join(' ');
+
+    // 기본 레코드
+    out.push({
+      date: curDate,
+      product_code,
+      product_name,
+      strength_display,
+      ingredient_name,
+      dose: doseRaw,
+      package_unit,
+      freq,
+      days,
+      ingredient_code
+    });
+  }
+  return out;
+}
+
+// 활성(현재 복용 중) 필터
+function filterActive(recs, asOf){
+  const today = new Date(asOf);
+  return recs.filter(r=>{
+    if(!r.days || !r.date) return false;
+    const start = fromYYYYMMDD(r.date);
+    const end = addDays(start, r.days-1);
+    return start <= today && today <= end;
+  });
+}
+
+// 성분 중복 통합(최신 우선)
+function dedupByIngredient(recs){
+  const map = new Map();
+  for(const r of recs){
+    const key = r.ingredient_name.toLowerCase();
+    const prev = map.get(key);
+    if(!prev || prev.date < r.date) map.set(key, r);
+  }
+  return Array.from(map.values());
+}
+
+// 경구만
+function onlyOral(recs){
+  return recs.filter(r=> isOralByFormCode(r.ingredient_code));
+}
+
+// 표시 문자열 생성 (기본 텍스트)
+function baseText(rec, displayMode){
+  switch(displayMode){
+    case 'nameOnly':
+      return rec.product_name;
+    case 'ingOnly':
+      return rec.ingredient_name;
+    case 'nameIng':
+    default:
+      return `${rec.product_name}(${rec.ingredient_name})`;
+  }
+}
+
+// 최종 표시 문자열 생성 (투약 방법 결합)
+function toDisplay(rec, displayMode, doseMode){
+  const base = baseText(rec, displayMode);
+  if(doseMode === 'withDose'){
+    const dose = doseDisplay(rec);
+    return `${base} ${dose}`.trim();
+  }
+  return base;
+}
+
+// CSV 라인 생성 (제품명, 성분, 투약량, 단위(패키지), 횟수/일, 일수, 시작일, 종료일)
+function toCSV(rec){
+  const start = fromYYYYMMDD(rec.date);
+  const end = addDays(start, rec.days-1);
+  const fmt = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  return [
+    rec.product_name,
+    rec.ingredient_name,
+    rec.dose,
+    rec.package_unit,
+    rec.freq,
+    rec.days,
+    fmt(start),
+    fmt(end)
+  ].map(v=>`"${String(v).replaceAll('"','\\"')}"`).join(',');
+}
+
+// ===== 이벤트 =====
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>Array.from(document.querySelectorAll(s));
+
+function showToast(msg='복사했습니다'){
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(()=> el.classList.add('hidden'), 1400);
+}
+
+function run(){
+  const raw = $('#input').value || '';
+  const asOf = $('#asOf').value || toDateStr(new Date());
+  const onlyOralOn = $('#onlyOral').checked;
+  const dedupOn = $('#dedupIngredient').checked;
+  const displayMode = ($$('input[name="display"]').find(x=>x.checked)||{}).value || 'nameIng';
+  const doseMode = ($$('input[name="doseMode"]').find(x=>x.checked)||{}).value || 'withDose';
+
+  let recs = parse(raw);
+  $('#debug').textContent = JSON.stringify(recs.slice(0,50), null, 2);
+  recs = filterActive(recs, asOf);
+  if(onlyOralOn) recs = onlyOral(recs);
+  if(dedupOn) recs = dedupByIngredient(recs);
+
+  // 정렬: 표시 텍스트 기준 가나다
+  recs.sort((a,b)=> toDisplay(a, displayMode, doseMode).localeCompare(toDisplay(b, displayMode, doseMode), 'ko'));
+
+  // 결과 표시(각 약 줄바꿈 = <li> 별도 행)
+  const list = $('#resultList');
+  list.innerHTML = '';
+  if(recs.length===0){
+    $('#resultEmpty').classList.remove('hidden');
+    list.classList.add('hidden');
+  } else {
+    $('#resultEmpty').classList.add('hidden');
+    list.classList.remove('hidden');
+    for(const r of recs){
+      const li = document.createElement('li');
+      li.textContent = toDisplay(r, displayMode, doseMode);
+      list.appendChild(li);
+    }
+  }
+
+  // 클립보드 핸들러(약마다 줄바꿈: CRLF)
+  const CRLF = "\r\n";
+  $('#copyBtn').onclick = async()=>{
+    const lines = recs.map(r => toDisplay(r, displayMode, doseMode));
+    const text = lines.join(CRLF);
+    if(!text){ showToast('복사할 결과가 없습니다'); return; }
+    await navigator.clipboard.writeText(text);
+    showToast('줄바꿈 형식으로 복사했습니다');
+  };
+  $('#copyCSV').onclick = async()=>{
+    if(!recs.length){ showToast('복사할 결과가 없습니다'); return; }
+    const header = '제품명,성분명,투약량,패키지단위,횟수/일,일수,시작일,종료일';
+    const csv = [header, ...recs.map(toCSV)].join(CRLF);
+    await navigator.clipboard.writeText(csv);
+    showToast('CSV 형식으로 복사했습니다');
+  };
+}
+
+function clearAll(){
+  $('#input').value = '';
+  $('#resultList').innerHTML = '';
+  $('#resultList').classList.add('hidden');
+  $('#resultEmpty').classList.remove('hidden');
+  $('#debug').textContent = '';
+}
+
+// 초기화 + 전역 붙여넣기 지원(Ctrl+V anywhere)
+window.addEventListener('DOMContentLoaded', ()=>{
+  const ta = $('#input');
+  $('#asOf').value = toDateStr(new Date());
+  ta.focus();
+
+  // 페이지 어디든 붙여넣으면 textarea로 들어가도록
+  window.addEventListener('paste', (e)=>{
+    // 이미 텍스트 영역에 붙여넣는 경우는 그대로 두고, 그 외에는 가로채기
+    if(document.activeElement === ta) return;
+    const text = (e.clipboardData && e.clipboardData.getData('text')) || '';
+    if(text){
+      e.preventDefault();
+      ta.value = text;
+      ta.focus();
+    }
+  }, true);
+
+  $('#run').addEventListener('click', run);
+  $('#clear').addEventListener('click', clearAll);
+});
+</script>
+</body>
+</html>
