@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>소아 정상 행동 발달 퀴즈 (v3.1 안정화)</title>
+<style>
+  :root{--brand:#2563eb;--bg:#f7f7fb;--card:#ffffff;--muted:#6b7280;--ok:#16a34a;--bad:#dc2626;--chip:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple Color Emoji,Noto Color Emoji,sans-serif;background:var(--bg);color:#111}
+  header{background:var(--brand);color:#fff;padding:14px 16px;font-weight:700;text-align:center}
+  main{max-width:980px;margin:18px auto;padding:0 12px}
+  .card{background:var(--card);border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.07);padding:18px}
+  h2{margin:6px 0 14px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;padding:10px 14px;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#334155}
+  .btn.ghost{background:#eef2ff;color:#1e3a8a}
+  .btn.gray{background:#e5e7eb;color:#111}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+  .age{background:var(--chip);border:0;border-radius:10px;padding:10px 8px;font-weight:600;cursor:pointer}
+  .age:hover{filter:brightness(.95)}
+  .question{font-size:1.2rem;line-height:1.6;margin:6px 0 12px}
+  .hint{color:var(--muted);font-size:.9rem}
+  .feedback{margin-top:10px;padding:12px;border-radius:10px}
+  .ok{background:#dcfce7;color:#065f46}
+  .no{background:#fee2e2;color:#7f1d1d}
+  .hidden{display:none !important}
+  .section{margin-top:14px}
+  .chips label{display:inline-flex;align-items:center;gap:6px;margin-right:14px}
+  .chips input{width:18px;height:18px}
+  .opts{margin-top:10px;padding:12px;background:#f3f4f6;border-radius:10px}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{border-top:1px solid #e5e7eb;padding:10px 8px;text-align:left;vertical-align:top}
+  th{background:#f3f4f6}
+  td.status{width:72px;text-align:center;font-weight:700}
+  .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#1e3a8a;font-size:.82rem}
+  .muted{color:#6b7280}
+  textarea{width:100%;min-height:120px;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff}
+  details>summary{cursor:pointer;margin:12px 0;font-weight:600}
+  #completeBox{margin-top:12px;padding:16px;border-radius:12px;background:#eef2ff;color:#1e3a8a;text-align:center}
+</style>
+</head>
+<body>
+<header>소아 정상 행동 발달 퀴즈</header>
+<main>
+  <!-- 시작 화면 -->
+  <section id="start" class="card">
+    <h2>카테고리 선택</h2>
+    <div class="chips section">
+      <label><input type="checkbox" class="cat" value="운동" checked>운동</label>
+      <label><input type="checkbox" class="cat" value="적응" checked>적응</label>
+      <label><input type="checkbox" class="cat" value="언어" checked>언어</label>
+      <label><input type="checkbox" class="cat" value="사회적 행동" checked>사회적 행동</label>
+    </div>
+
+    <div class="opts">
+      <strong>출제 옵션</strong><br/>
+      <label style="display:block;margin-top:6px;"><input type="checkbox" id="optAfter28"> 28주 이후로만 출제</label>
+      <label style="display:block;margin-top:6px;"><input type="checkbox" id="optUnattemptedFirst"> 풀지 않은 문제부터 출제</label>
+      <label style="display:block;margin-top:6px;"><input type="checkbox" id="optWrongFirst"> 틀린 문제부터 출제</label>
+      <div class="hint" style="margin-top:6px;">※ '풀지 않은 문제'와 '틀린 문제' 옵션은 서로 배타적입니다. 하나를 선택하면 다른 하나가 자동 해제됩니다.</div>
+    </div>
+
+    <div class="row section">
+      <button class="btn" id="startBtn">퀴즈 시작</button>
+      <button class="btn gray" id="reportBtn">정오표 보기</button>
+      <button class="btn ghost" id="manageBtn">데이터 편집</button>
+    </div>
+    <p class="hint section">표의 문장을 1개씩 저장해 퀴즈로 제시합니다. (기록은 이 기기에 보존)</p>
+  </section>
+
+  <!-- 퀴즈 화면 -->
+  <section id="quiz" class="card hidden">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <div><span class="pill" id="qMeta"></span></div>
+      <div class="row">
+        <button class="btn gray" id="toStart">처음</button>
+        <button class="btn gray" id="toReport">정오표</button>
+      </div>
+    </div>
+    <div id="qText" class="question">문장이 여기에 표시됩니다.</div>
+    <div id="completeBox" class="hidden">
+      <div style="font-weight:700;">🎉 모든 문제를 다 풀었습니다!</div>
+      <button class="btn gray" id="goHomeFromComplete" style="margin-top:10px;">처음으로 돌아가기</button>
+    </div>
+    <div class="grid" id="ageGrid"></div>
+    <div id="feedback" class="feedback hidden"></div>
+    <div class="row section">
+      <button class="btn" id="nextBtn">다음 문제</button>
+    </div>
+    <p class="hint">※ 중복 없이 셔플되어 출제됩니다.</p>
+  </section>
+
+  <!-- 정오표 화면 -->
+  <section id="report" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <h2>정오표</h2>
+      <div class="row">
+        <button class="btn gray" id="backStart">처음</button>
+        <button class="btn gray" id="resetMark">정오표 초기화</button>
+      </div>
+    </div>
+    <div class="muted">최근 풀이 결과가 반영됩니다. (O: 정답, X: 오답, –: 미풀이)</div>
+    <table>
+      <thead><tr><th>연령</th><th>카테고리</th><th>문장</th><th class="status">결과</th></tr></thead>
+      <tbody id="reportBody"></tbody>
+    </table>
+  </section>
+
+  <!-- 데이터 편집기 -->
+  <section id="manage" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <h2>데이터 편집 (관리자)</h2>
+      <div class="row">
+        <button class="btn gray" id="backHome">처음</button>
+        <button class="btn secondary" id="saveData">저장</button>
+      </div>
+    </div>
+    <p class="muted">각 칸에 “여러 문장”을 붙여넣으면 자동으로 한 문장씩 쪼개 저장됩니다. 줄을 지우면 해당 문항이 삭제됩니다.</p>
+    <details>
+      <summary>원본 데이터 내보내기/불러오기</summary>
+      <div class="row">
+        <button class="btn gray" id="importJson">JSON 불러오기</button>
+        <button class="btn gray" id="exportJson">JSON 내보내기</button>
+        <button class="btn gray" id="restoreOriginal">원본 데이터로 복원</button>
+        <button class="btn gray" id="wipeAll">모든 데이터 삭제</button>
+      </div>
+    </details>
+    <div id="editor"></div>
+  </section>
+
+<!-- Google AdSense 하단 광고 (반응형, 전체폭 대응) -->
+<div id="ad-footer" style="max-width:980px;margin:20px auto 32px;display:block;">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5540625627003630"
+       crossorigin="anonymous"></script>
+  <ins class="adsbygoogle"
+       style="display:block"
+       data-ad-client="ca-pub-5540625627003630"
+       data-ad-slot="6088782346"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
+</div>
+
+</main>
+
+<script>
+// ---------- 상수/초기 데이터 ----------
+const AGE_ORDER=["~4주","4주","8주","12주","16주","28주","40주","12개월","15개월","18개월","2년","30개월","3년","4년","5년"];
+const CATS=["운동","적응","언어","사회적 행동"];
+const LS_ITEMS="peds.items.v3.1",LS_RESULTS="peds.results.v1",LS_FILTERS="peds.filters.v1",LS_PREFS="peds.prefs.v2";
+
+// 최신 데이터셋 (요약)
+const ORIGINAL=[
+  {age:"~4주",category:"운동",text:"팔다리를 구부리고 있다."},
+  {age:"~4주",category:"운동",text:"Moro 반사, 파악 반사가 활발하다."},
+  {age:"~4주",category:"적응",text:"얼굴이나 불빛을 응시한다."},
+  {age:"~4주",category:"언어",text:"목소리에 반응을 보인다."},
+  {age:"~4주",category:"사회적 행동",text:"사람의 얼굴을 선호한다."},
+  {age:"4주",category:"운동",text:"엎어 놓으면 턱을 들고, 머리를 좌우로 돌린다."},
+  {age:"4주",category:"운동",text:"긴장성 경반사의 자세로 누워 있다."},
+  {age:"4주",category:"적응",text:"사물을 쳐다본다."},
+  {age:"4주",category:"적응",text:"움직이는 물체를 따라 본다."},
+  {age:"4주",category:"언어",text:"미소짓기 시작한다."},
+  {age:"4주",category:"사회적 행동",text:"목소리에 반응하여 몸을 움찔거린다."},
+  {age:"8주",category:"운동",text:"엎어 배를 받쳐 들어올리면 머리를 몸과 수평이 되도록 든다."},
+  {age:"8주",category:"운동",text:"긴장성 경반사의 자세로 누워 있다."},
+  {age:"8주",category:"적응",text:"움직이는 물체를 180°까지 따라 본다."},
+  {age:"8주",category:"언어",text:"다른 사람의 목소리를 듣고 자신의 목소리를 낸다."},
+  {age:"8주",category:"사회적 행동",text:"주위의 자극에 반응하여 미소짓는다."},
+  {age:"12주",category:"운동",text:"엎어 놓으면 머리와 가슴을 든다."},
+  {age:"12주",category:"운동",text:"팔을 펴고 있는다."},
+  {age:"12주",category:"운동",text:"엎어 배를 받쳐 들어올리면 머리를 몸 위치보다 높게 들어올린다."},
+  {age:"12주",category:"운동",text:"머리를 약간 가눈다."},
+  {age:"12주",category:"적응",text:"물체를 보면 접근하지만 잡지는 못한다."},
+  {age:"12주",category:"적응",text:"장난감을 보면 손을 흔든다."},
+  {age:"12주",category:"언어",text:"음악 소리에 귀를 기울인다."},
+  {age:"12주",category:"언어",text:"아~ 소리를 낸다."},
+  {age:"12주",category:"사회적 행동",text:"사회적 반응 시간이 길어진다."},
+  {age:"16주",category:"운동",text:"엎어 놓으면 머리와 가슴을 들어 머리를 수직으로 든다."},
+  {age:"16주",category:"운동",text:"다리를 펴고 있는다."},
+  {age:"16주",category:"운동",text:"머리를 가운데로 하고 대칭 자세로 누워있는다."},
+  {age:"16주",category:"운동",text:"바로 누운 자세에서 붙잡아 일으켜 앉히면 머리를 가눈다."},
+  {age:"16주",category:"적응",text:"물체에 손을 뻗어 잡고 입을 가져간다."},
+  {age:"16주",category:"적응",text:"작은 물체를 보기만 하고 잡지는 않는다."},
+  {age:"16주",category:"언어",text:"크게 소리 내어 웃는다."},
+  {age:"16주",category:"사회적 행동",text:"먹을 것을 보면 좋아한다."},
+  {age:"28주",category:"운동",text:"뒤집는다."},
+  {age:"28주",category:"운동",text:"앉혀 놓으면 혼자 앉아 있는다."},
+  {age:"28주",category:"운동",text:"배밀이를 한다. 또는 네발로 긴다."},
+  {age:"28주",category:"운동",text:"세우면 다리를 뻗어 몸을 지탱한다."},
+  {age:"28주",category:"적응",text:"물건을 다른 손으로 물건을 옮겨 쥔다."},
+  {age:"28주",category:"적응",text:"작은 물체를 보면 갈고리 모양으로 움켜쥔다."},
+  {age:"28주",category:"언어",text:"여러 음절의 모음 소리를 낸다."},
+  {age:"28주",category:"언어",text:"의미 없이 재잘거린다."},
+  {age:"28주",category:"사회적 행동",text:"엄마를 더 좋아한다."},
+  {age:"28주",category:"사회적 행동",text:"거울을 좋아한다."},
+  {age:"28주",category:"사회적 행동",text:"상대의 감정변화에 반응을 보인다."},
+  {age:"40주",category:"운동",text:"혼자 일어나 앉는다."},
+  {age:"40주",category:"운동",text:"기어 다닌다."},
+  {age:"40주",category:"운동",text:"붙잡고 일어난다."},
+  {age:"40주",category:"운동",text:"가구 등을 붙잡고 걷는다."},
+  {age:"40주",category:"적응",text:"엄지손가락과 검지손가락을 사용한다."},
+  {age:"40주",category:"적응",text:"손수건 밑에 감추면 찾아낸다."},
+  {age:"40주",category:"언어",text:"반복되는 자음 발음을 한다."},
+  {age:"40주",category:"언어",text:"이름을 부르면 반응을 한다."},
+  {age:"40주",category:"사회적 행동",text:"'까꿍' 놀이를 한다."},
+  {age:"40주",category:"사회적 행동",text:"'짝짜꿍'을 한다."},
+  {age:"40주",category:"사회적 행동",text:"'바이바이'를 한다."},
+  {age:"12개월",category:"운동",text:"혼자 일어선다."},
+  {age:"12개월",category:"운동",text:"혼자 걷는다."},
+  {age:"12개월",category:"적응",text:"알약 크기의 작은 물건을 엄지와 검지만으로 집는다."},
+  {age:"12개월",category:"적응",text:"달라고 한다면 손에 든 물건을 스스로 펴서 놓는다."},
+  {age:"12개월",category:"언어",text:"'마마' '빠빠' 말고 다른 말 몇 개 정도 말한다."},
+  {age:"12개월",category:"사회적 행동",text:"간단한 공놀이를 한다."},
+  {age:"12개월",category:"사회적 행동",text:"옷을 입을 때 자세를 맞춘다."},
+  {age:"15개월",category:"운동",text:"혼자 '잘' 걷는다."},
+  {age:"15개월",category:"운동",text:"층계를 기어 올라간다."},
+  {age:"15개월",category:"적응",text:"종이에 그리는 시늉을 한다."},
+  {age:"15개월",category:"적응",text:"입방체를 2개 쌓아 올린다."},
+  {age:"15개월",category:"언어",text:"친숙한 물건의 이름을 말한다. (ex. 공)"},
+  {age:"15개월",category:"언어",text:"뜻을 알 수 없는 말을 지껄인다."},
+  {age:"15개월",category:"언어",text:"간단한 한 가지 지시는 맞게 수행한다."},
+  {age:"15개월",category:"사회적 행동",text:"원하는 것을 손가락으로 가리키며 달라고 한다."},
+  {age:"18개월",category:"운동",text:"한 손을 잡고 층계를 올라간다."},
+  {age:"18개월",category:"운동",text:"서툴게 뛴다."},
+  {age:"18개월",category:"적응",text:"입방체를 4개를 쌓아 올린다."},
+  {age:"18개월",category:"적응",text:"흘려쓰기, 수직선을 흉내 내며 그린다."},
+  {age:"18개월",category:"적응",text:"병을 거꾸로 하여 작은 물체를 꺼낸다."},
+  {age:"18개월",category:"언어",text:"신체 부위를 1개 이상 알고 말한다."},
+  {age:"18개월",category:"언어",text:"10개 정도의 단어를 말한다."},
+  {age:"18개월",category:"사회적 행동",text:"혼자 먹는다."},
+  {age:"18개월",category:"사회적 행동",text:"소변을 보고 알려 준다."},
+  {age:"18개월",category:"사회적 행동",text:"부모에게 입을 오므려서 뽀뽀한다."},
+  {age:"18개월",category:"사회적 행동",text:"문제가 있으면 도움을 요청한다."},
+  {age:"2년",category:"운동",text:"잘 뛴다."},
+  {age:"2년",category:"운동",text:"층계를 한 번에 한 계단씩 오르내린다."},
+  {age:"2년",category:"적응",text:"입방체를 6~7개 쌓아 올린다."},
+  {age:"2년",category:"적응",text:"수평 직선을 종이에 흉내내어 그린다."},
+  {age:"2년",category:"언어",text:"간단한 문장을 말한다."},
+  {age:"2년",category:"언어",text:"그림책을 읽어주면 귀기울여 듣는다."},
+  {age:"2년",category:"사회적 행동",text:"간단한 옷을 혼자 벗는다."},
+  {age:"2년",category:"사회적 행동",text:"숟가락질을 한다."},
+  {age:"30개월",category:"운동",text:"한 발씩 번갈아 딛으며 계단 오른다."},
+  {age:"30개월",category:"적응",text:"입방체를 9개 쌓아 올린다."},
+  {age:"30개월",category:"적응",text:"수평, 수직 직선을 '보고' 그린다."},
+  {age:"30개월",category:"언어",text:"자신을 대명사 '나'로 표현한다."},
+  {age:"30개월",category:"사회적 행동",text:"물건 치우기를 돕는다."},
+  {age:"30개월",category:"사회적 행동",text:"흉내내기 놀이를 한다."},
+  {age:"3년",category:"운동",text:"세발자전거를 탄다."},
+  {age:"3년",category:"운동",text:"한 발로 잠깐 설 수 있다."},
+  {age:"3년",category:"적응",text:"입방체 3개로 다리 모양을 만든다."},
+  {age:"3년",category:"적응",text:"원을 보고 그린다."},
+  {age:"3년",category:"언어",text:"이름·성별·나이를 말한다."},
+  {age:"3년",category:"언어",text:"셋까지 센다."},
+  {age:"3년",category:"언어",text:"처음 보는 사람도 알아들을 수 있다."},
+  {age:"3년",category:"사회적 행동",text:"옷입기에 협조한다. (단추 풀기, 신발을 신는다.)"},
+  {age:"3년",category:"사회적 행동",text:"손을 씻는다."},
+  {age:"4년",category:"운동",text:"한 발로 뛴다."},
+  {age:"4년",category:"운동",text:"가위질로 그림 오려 낸다."},
+  {age:"4년",category:"적응",text:"사각형을 보고 그린다."},
+  {age:"4년",category:"적응",text:"사람 그림에서 머리 외에 몸의 2~4 부분을 그릴 수 있다."},
+  {age:"4년",category:"적응",text:"십자 모양을 보고 그린다."},
+  {age:"4년",category:"적응",text:"두 선 중 더 긴 것을 가려낼 수 있다."},
+  {age:"4년",category:"언어",text:"전치사를 안다."},
+  {age:"4년",category:"언어",text:"넷까지 센다."},
+  {age:"4년",category:"언어",text:"반대말을 안다."},
+  {age:"4년",category:"언어",text:"줄거리가 있는 말을 한다."},
+  {age:"4년",category:"사회적 행동",text:"친구와 협조적으로 함께 논다."},
+  {age:"4년",category:"사회적 행동",text:"혼자 용변을 해결한다."},
+  {age:"4년",category:"사회적 행동",text:"양치질 한다."},
+  {age:"4년",category:"사회적 행동",text:"세수를 한다."},
+  {age:"5년",category:"운동",text:"한 발씩 번갈아 들고 뛴다."},
+  {age:"5년",category:"운동",text:"줄넘기를 한다."},
+  {age:"5년",category:"적응",text:"삼각형 보고 그린다."},
+  {age:"5년",category:"적응",text:"머리 외 6부분을 그린다."},
+  {age:"5년",category:"적응",text:"둘 중 무거운 것을 가릴 수 있다."},
+  {age:"5년",category:"언어",text:"열까지 센다."},
+  {age:"5년",category:"언어",text:"4가지 색을 알고 말한다."},
+  {age:"5년",category:"언어",text:"단어의 의미를 묻는다."},
+  {age:"5년",category:"사회적 행동",text:"혼자 옷을 입고 벗는다."},
+  {age:"5년",category:"사회적 행동",text:"소꿉 놀이를 한다."},
+  {age:"5년",category:"사회적 행동",text:"다른 아이와 경쟁적인 놀이를 한다."},
+];
+
+// ---------- 유틸 ----------
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const uid=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
+function shuffle(a){const x=a.slice();for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]];}return x;}
+// (Safari 구버전 호환) 문장 분리: lookbehind 미사용
+function splitSentences(t){
+  if(!t) return [];
+  const c=t.replace(/\s+/g,' ').trim();
+  if(!c) return [];
+  const withMarks=c.replace(/([.!?])\s+/g,'$1|');
+  return withMarks.split('|').map(s=>s.trim()).filter(Boolean);
+}
+
+// ---------- 저장소 ----------
+function loadItems(){try{const r=localStorage.getItem(LS_ITEMS);return r?JSON.parse(r):[]}catch{return[]}}
+function saveItems(a){localStorage.setItem(LS_ITEMS,JSON.stringify(a))}
+function loadResults(){try{const r=localStorage.getItem(LS_RESULTS);return r?JSON.parse(r):{}}catch{return{}}}
+function saveResults(o){localStorage.setItem(LS_RESULTS,JSON.stringify(o))}
+function loadFilters(){try{const r=localStorage.getItem(LS_FILTERS);return r?JSON.parse(r):{"운동":true,"적응":true,"언어":true,"사회적 행동":true}}catch{return{"운동":true,"적응":true,"언어":true,"사회적 행동":true}}}
+function saveFilters(f){localStorage.setItem(LS_FILTERS,JSON.stringify(f))}
+function loadPrefs(){try{const r=localStorage.getItem(LS_PREFS);return r?JSON.parse(r):{after28:false,unattemptedFirst:false,wrongFirst:false}}catch{return{after28:false,unattemptedFirst:false,wrongFirst:false}}}
+function savePrefs(p){localStorage.setItem(LS_PREFS,JSON.stringify(p))}
+
+// ---------- 상태 ----------
+let ITEMS=loadItems();
+if(ITEMS.length===0){ITEMS=ORIGINAL.map(o=>({id:uid(),...o}));saveItems(ITEMS);}
+let RESULTS=loadResults();
+let FILTERS=loadFilters();
+let PREFS=loadPrefs();
+
+// ---------- 화면 전환 ----------
+function mountStart(){
+  $("#start").classList.remove("hidden"); $("#quiz").classList.add("hidden"); $("#report").classList.add("hidden"); $("#manage").classList.add("hidden");
+  $$(".cat").forEach(cb=>{ cb.checked=!!FILTERS[cb.value]; cb.onchange=()=>{FILTERS[cb.value]=cb.checked;saveFilters(FILTERS);} });
+  $("#optAfter28").checked = !!PREFS.after28;
+  $("#optUnattemptedFirst").checked = !!PREFS.unattemptedFirst;
+  $("#optWrongFirst").checked = !!PREFS.wrongFirst;
+  const un = $("#optUnattemptedFirst"), wr=$("#optWrongFirst");
+  un.onchange = e=>{ if(e.target.checked){ wr.checked=false; PREFS.wrongFirst=false; } PREFS.unattemptedFirst=e.target.checked; savePrefs(PREFS); };
+  wr.onchange = e=>{ if(e.target.checked){ un.checked=false; PREFS.unattemptedFirst=false; } PREFS.wrongFirst=e.target.checked; savePrefs(PREFS); };
+  $("#optAfter28").onchange = e=>{ PREFS.after28=e.target.checked; savePrefs(PREFS); };
+}
+function mountQuiz(){ $("#start").classList.add("hidden"); $("#quiz").classList.remove("hidden"); $("#report").classList.add("hidden"); $("#manage").classList.add("hidden"); }
+function mountReport(){ $("#start").classList.add("hidden"); $("#quiz").classList.add("hidden"); $("#report").classList.remove("hidden"); $("#manage").classList.add("hidden"); renderReport(); }
+function mountManage(){ $("#start").classList.add("hidden"); $("#quiz").classList.add("hidden"); $("#report").classList.add("hidden"); $("#manage").classList.remove("hidden"); renderEditor(); }
+
+// ---------- 퀴즈 ----------
+let QUEUE=[],CURR=null;
+const AGE_GRID=$("#ageGrid"); AGE_GRID.innerHTML="";
+AGE_ORDER.forEach(a=>{const b=document.createElement("button");b.className="age";b.textContent=a;b.onclick=()=>pickAge(a);AGE_GRID.appendChild(b);});
+
+function ageFilterAfter28(list){
+  if(!PREFS.after28) return list;
+  const idx28 = AGE_ORDER.indexOf("28주");
+  return list.filter(it => AGE_ORDER.indexOf(it.age) >= idx28);
+}
+function activeItems(){
+  const act=CATS.filter(c=>FILTERS[c]);
+  return ITEMS.filter(i=>act.includes(i.category));
+}
+function buildQueue(){
+  let pool = ageFilterAfter28(activeItems());
+  if(pool.length===0){ QUEUE=[]; CURR=null; return; }
+
+  const wrong = pool.filter(it => RESULTS[it.id]==="X");
+  const unattempted = pool.filter(it => RESULTS[it.id]===undefined);
+  const correct = pool.filter(it => RESULTS[it.id]==="O");
+
+  if(PREFS.wrongFirst){
+    if(wrong.length===0 && unattempted.length===0 && pool.length>0){ QUEUE=[]; CURR=null; return; }
+    QUEUE = [...shuffle(wrong), ...shuffle(unattempted), ...shuffle(correct)];
+  }else if(PREFS.unattemptedFirst){
+    if(unattempted.length===0 && pool.length>0){ QUEUE=[]; CURR=null; return; }
+    QUEUE = [...shuffle(unattempted), ...shuffle(correct), ...shuffle(wrong)];
+  }else{
+    // 옵션 OFF 상태에서도 전체가 모두 풀렸다면 완료 처리
+    const allAttempted = pool.every(it => RESULTS[it.id] !== undefined);
+    if(allAttempted){ QUEUE=[]; CURR=null; return; }
+    QUEUE = shuffle(pool);
+  }
+  CURR = QUEUE[0] || null;
+}
+function showCompletion(){
+  $("#qText").textContent="";
+  $("#ageGrid").classList.add("hidden");
+  $("#completeBox").classList.remove("hidden");
+  $("#feedback").classList.add("hidden");
+  $("#nextBtn").disabled=true;
+}
+function showQuestion(){
+  if(!CURR){ showCompletion(); return; }
+  $("#completeBox").classList.add("hidden");
+  $("#ageGrid").classList.remove("hidden");
+  $("#nextBtn").disabled=false;
+  $("#qText").textContent=CURR.text;
+  $("#qMeta").textContent=`카테고리: ${CURR.category}`;
+  $("#feedback").classList.add("hidden");
+}
+function pickAge(a){
+  if(!CURR) return;
+  const ok=(a===CURR.age);
+  RESULTS[CURR.id]=ok?"O":"X"; saveResults(RESULTS);
+  const fb=$("#feedback"); fb.className="feedback "+(ok?"ok":"no");
+  fb.textContent= ok?`정답! (${CURR.age})`:`오답… 정답은 ${CURR.age}`;
+  fb.classList.remove("hidden");
+}
+function nextQuestion(){
+  if(!CURR){ return; }
+  if(QUEUE.length<=1){
+    buildQueue(); showQuestion(); return;
+  }
+  QUEUE.shift(); CURR=QUEUE[0]; showQuestion();
+}
+
+// ---------- 정오표 ----------
+function renderReport(){
+  const tbody=$("#reportBody"); tbody.innerHTML="";
+  const list=ITEMS.slice().sort((a,b)=>AGE_ORDER.indexOf(a.age)-AGE_ORDER.indexOf(b.age));
+  list.forEach(it=>{
+    const tr=document.createElement("tr");
+    const st=RESULTS[it.id]||"–";
+    tr.innerHTML=`<td>${it.age}</td><td>${it.category}</td><td>${it.text}</td><td class="status">${st}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- 편집기 ----------
+function renderEditor(){
+  const host=$("#editor"); host.innerHTML="";
+  AGE_ORDER.forEach(age=>{
+    const title=document.createElement("h3"); title.textContent=age; host.appendChild(title);
+    const grid=document.createElement("div"); grid.className="grid"; host.appendChild(grid);
+    CATS.forEach(cat=>{
+      const cell=document.createElement("div"); cell.className="card"; cell.style.padding="12px";
+      const label=document.createElement("div"); label.innerHTML=`<strong>${cat}</strong> <span class="muted">(여러 문장 붙여넣기·수정·삭제 가능)</span>`;
+      const ta=document.createElement("textarea"); ta.dataset.age=age; ta.dataset.cat=cat;
+      ta.value = ITEMS.filter(i=>i.age===age&&i.category===cat).map(i=>i.text).join("\n");
+      cell.appendChild(label); cell.appendChild(ta); grid.appendChild(cell);
+    });
+  });
+}
+function saveFromEditor(){
+  const next=[];
+  $$("#editor textarea").forEach(ta=>{
+    const age=ta.dataset.age, cat=ta.dataset.cat;
+    let lines=splitSentences(ta.value);
+    if(lines.length===0){ lines=ta.value.split(/\n+/).map(s=>s.trim()).filter(Boolean); }
+    lines.forEach(t=>{
+      const prev=ITEMS.find(p=>p.age===age&&p.category===cat&&p.text===t);
+      next.push({id:prev?.id||uid(), age, category:cat, text:t});
+    });
+  });
+  ITEMS=next; saveItems(ITEMS); alert("저장되었습니다."); renderEditor();
+}
+function importJson(){
+  const raw=prompt("JSON 배열(Item[])을 붙여넣으세요. 예: [{\"age\":\"12개월\",\"category\":\"운동\",\"text\":\"혼자 걷는다.\"}, ...]");
+  if(!raw) return;
+  try{
+    const arr=JSON.parse(raw);
+    if(!Array.isArray(arr)) throw new Error("배열 형식이 아닙니다.");
+    ITEMS=arr.map(o=>({id:o.id||uid(),age:o.age,category:o.category,text:o.text}));
+    saveItems(ITEMS); renderEditor(); alert("불러왔습니다.");
+  }catch(e){ alert("실패: "+e.message); }
+}
+function exportJson(){
+  const blob=new Blob([JSON.stringify(ITEMS,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download="peds_items.json"; a.click(); URL.revokeObjectURL(url);
+}
+function restoreOriginal(){
+  if(!confirm("원본 데이터로 복원할까요? (현재 편집 내용은 덮어씁니다)")) return;
+  ITEMS=ORIGINAL.map(o=>({id:uid(),...o})); saveItems(ITEMS); renderEditor(); alert("원본으로 복원되었습니다.");
+}
+function wipeAll(){
+  if(!confirm("모든 데이터(문항/정오표)를 삭제할까요?")) return;
+  ITEMS=[]; saveItems(ITEMS); RESULTS={}; saveResults(RESULTS); renderEditor(); alert("모든 데이터가 삭제되었습니다.");
+}
+
+// ---------- 이벤트 바인딩 ----------
+document.getElementById("startBtn").onclick=()=>{
+  $$(".cat").forEach(cb=>FILTERS[cb.value]=cb.checked); saveFilters(FILTERS);
+  PREFS.after28 = document.getElementById("optAfter28").checked;
+  PREFS.unattemptedFirst = document.getElementById("optUnattemptedFirst").checked;
+  PREFS.wrongFirst = document.getElementById("optWrongFirst").checked;
+  savePrefs(PREFS);
+  const act = ageFilterAfter28(activeItems());
+  if(act.length===0){alert("선택 조건에 맞는 문항이 없습니다. 옵션/카테고리를 조정하세요.");return;}
+  mountQuiz(); buildQueue(); showQuestion();
+};
+document.getElementById("reportBtn").onclick=()=>mountReport();
+document.getElementById("manageBtn").onclick=()=>mountManage();
+
+document.getElementById("toStart").onclick=()=>mountStart();
+document.getElementById("toReport").onclick=()=>mountReport();
+document.getElementById("nextBtn").onclick=()=>nextQuestion();
+document.getElementById("goHomeFromComplete").onclick=()=>mountStart();
+
+document.getElementById("backStart").onclick=()=>mountStart();
+document.getElementById("resetMark").onclick=()=>{if(confirm("정오표(O/X) 기록을 모두 지울까요?")){RESULTS={};saveResults(RESULTS);renderReport();}};
+
+document.getElementById("backHome").onclick=()=>mountStart();
+document.getElementById("saveData").onclick=()=>saveFromEditor();
+document.getElementById("importJson").onclick=()=>importJson();
+document.getElementById("exportJson").onclick=()=>exportJson();
+document.getElementById("restoreOriginal").onclick=()=>restoreOriginal();
+document.getElementById("wipeAll").onclick=()=>wipeAll();
+
+// ---------- 부팅 ----------
+mountStart();
+</script>
+</body>
+</html>
